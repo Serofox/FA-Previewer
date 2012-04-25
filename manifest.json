@@ -1,0 +1,11 @@
+{
+  "name": "FA Previewer",
+  "version": "2.0.0",
+  "description": "Full-size pop-up image previewer for submission view on Fur Affinity",
+  "content_scripts": [
+    {
+      "matches": ["http://*.furaffinity.net/*", "https://*.furaffinity.net/*"],
+      "js": ["jquery.js", "jquery-ui.js", "jquery.hoverIntent.js", "popup.js"]
+    }
+   ]
+}
