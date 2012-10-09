@@ -132,11 +132,19 @@ function popup(img, e) {
   var popup_img, loading_img;
   popup_div.height(1).width(1)
     .empty()
-    .append(loading_img = $('<img id="loading_img" src="' + chrome.extension.getURL("loading.gif") + '"/>'))
+    .append(loading_img = $('<img id="loading_img" />'))
     .show();
 
-  loading_img.data('width', loading_img.attr('width'))
-    .data('height', loading_img.attr('height'));
+  // Give the image 100ms to load before showing the loading gif since it can
+  // be a bit jarring to have show and immediately disappear
+  setTimeout(function () {
+    if (popup_div.children("#loading_img").length > 0) {
+      loading_img
+        .attr('src', chrome.extension.getURL("loading.gif"))
+        .data('width', loading_img.attr('width'))
+        .data('height', loading_img.attr('height'));
+    }
+  }, 100);
 
   popup_img = $('<img id="popup_img"></img>')
 
