@@ -6,6 +6,7 @@ popup_div.css("z-index", "1024").css("position", "absolute").hide();
 var callbacks = {};
 var px = -1;
 var py = -1;
+var hoveredImgSrc = null;
 
 var imgs = $('img');
 $.each(imgs, function(_, img) {
@@ -41,6 +42,8 @@ $.each(imgs, function(_, img) {
     },
     function() {
       px = py = -1;
+
+      hoveredImgSrc = null;
       
       $(popup_div.children("#popup_img")).hide();
       $(popup_div.children("#loading_img")).hide();
@@ -59,6 +62,14 @@ $(document).ready(function() {
       preload();
     }, (1000));
   }
+
+  $('body').keyup(function (e) {
+    if (e.which == 83) { // 'S'
+      if (hoveredImgSrc != null) {
+        downloadImage(hoveredImgSrc);
+      }
+    }
+  })
 });
 
 function isThumbnail(img) {
@@ -85,7 +96,8 @@ function getFullImageSrc(thumbnail, callback) {
   var sub_link = $(thumbnail).parents('a').first().attr('href');
   $.ajax(sub_link, {dataType: 'text'})
     .success(function (data) {
-      var match = data.match(/img.*\s+id\s*=\s*"submissionImg".*\s+src="([^"]+)"/);
+      var match = data.match(/var\s+full_url\s*=\s*"([^"]+)"/);
+      
       if (match) {
         img_src = match[1];
       }
@@ -148,10 +160,13 @@ function popup(img, e) {
 
   popup_img = $('<img id="popup_img"></img>')
 
+  maybeShowDownloadFeatureNotif();
+
   getFullImageSrc(img, function (img_src) {
     popup_div.append(
       popup_img.attr({src: img_src})
       .load(function() {
+        hoveredImgSrc = img_src;
         popup_img.data('width', popup_img.width()).data('height', popup_img.height());
         popup_div.children("#loading_img").remove();
         move_image($(this), px, py);
@@ -235,4 +250,25 @@ function viewport() {
     cx: $(window).width(),
     cy: $(window).height()
   };
+}
+
+function maybeShowDownloadFeatureNotif() {
+  if (!localStorage["downloadFeatureNotifShown"]) {
+    $.pnotify({
+      title: 'FA Previewer',
+      text: 'New Feature: Press the \'S\' key while hovering over an image to save it.  Happy FA\'ing, <3 Sero!',
+      type: 'info'
+    });
+    localStorage["downloadFeatureNotifShown"] = true;
+  }
+}
+
+function downloadImage(image_src) {
+  var a = document.createElement('a');
+  a.href = image_src;
+  a.download = image_src.split('/').pop().split('?')[0]; // Prettify the download name
+  if (!a.download) { a.download = 'fa' + Date.now() + '.jpg'; }
+  var clickEvent = document.createEvent('MouseEvent');
+  clickEvent.initEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+  a.dispatchEvent(clickEvent);
 }
