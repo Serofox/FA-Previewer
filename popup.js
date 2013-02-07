@@ -101,7 +101,7 @@ function getFullImageSrc(thumbnail, callback) {
       if (match) {
         img_src = match[1];
       }
-      //var img_src = $(data).find('img#submissionImg').attr('src');
+      
       if (img_src && sid) {
         localStorage[sid] = img_src;
         callbacks[sid](img_src);
