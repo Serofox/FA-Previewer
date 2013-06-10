@@ -1,13 +1,13 @@
 {
   "name": "FA Previewer",
-  "version": "2.1.1",
+  "version": "2.2",
   "description": "Full-size pop-up image previewer for submission view on Fur Affinity",
   "manifest_version": 2,
   "content_scripts": [
     {
       "matches": ["http://*.furaffinity.net/*", "https://*.furaffinity.net/*"],
       "js": ["lib/jquery.js", "lib/jquery-ui.js", "lib/jquery.hoverIntent.js", "lib/jquery.pnotify.min.js", "popup.js"],
-      "css": ["lib/jquery.pnotify.default.css"]
+      "css": ["popup.css", "lib/jquery.pnotify.default.css"]
     }
   ],
   "web_accessible_resources": [

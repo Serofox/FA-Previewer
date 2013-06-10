@@ -1,0 +1,8 @@
+#fa_popup {
+	position: absolute;
+	z-index: 1024;
+}
+
+#fa_popup #popup_img {
+	border: solid black 3px;
+}

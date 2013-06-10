@@ -2,11 +2,12 @@ var dbg = false;
 
 $(document.body).append($('<div id="fa_popup"></div>'));
 var popup_div = $($('#fa_popup')[0]);
-popup_div.css("z-index", "1024").css("position", "absolute").hide();
+popup_div.hide();
 var callbacks = {};
 var px = -1;
 var py = -1;
 var hoveredImgSrc = null;
+var hoveredSid = null;
 
 var imgs = $('img');
 $.each(imgs, function(_, img) {
@@ -44,6 +45,7 @@ $.each(imgs, function(_, img) {
       px = py = -1;
 
       hoveredImgSrc = null;
+      hoveredSid = null;
       
       $(popup_div.children("#popup_img")).hide();
       $(popup_div.children("#loading_img")).hide();
@@ -68,6 +70,10 @@ $(document).ready(function() {
       if (hoveredImgSrc != null) {
         downloadImage(hoveredImgSrc);
       }
+    } else if (e.which == 70) { // 'F'
+      if (hoveredSid != null) {
+        doFave(hoveredSid);
+      }
     }
   })
 });
@@ -76,46 +82,156 @@ function isThumbnail(img) {
   return $(img).siblings('i.icon').length > 0;
 }
 
+function getSubmissionPage(sid, callback) {
+  sid_num = sid;
+  if (sid_num.indexOf("sid_") == 0) {
+    sid_num = sid_num.substring("sid_".length);
+  }
+  sub_link = "/view/" + sid_num + "/";
+
+  $.ajax(sub_link, {dataType: 'text'})
+    .success(function (data) {
+      callback(data);
+    })
+    .error(function (data, text, xhr) {
+      console.error('Submission request failed: ' + text + '\n' + data);
+      callback(null);
+    });
+}
+
 function getFullImageSrc(thumbnail, callback) {
   var sid = $(thumbnail).parents('b').first().attr('id');
   if (sid && localStorage[sid]) {
-    callback(localStorage[sid]);
+    callback(sid, localStorage[sid]);
     return;
   }
 
   if (sid && callbacks[sid]) {
     var orig_callback = callbacks[sid];
-    callbacks[sid] = function (img_src) {
-      orig_callback(img_src);
-      callback(img_src);
+    callbacks[sid] = function (sid, img_src) {
+      orig_callback(sid, img_src);
+      callback(sid, img_src);
     }
     return;
   }
 
   callbacks[sid] = callback;
-  var sub_link = $(thumbnail).parents('a').first().attr('href');
-  $.ajax(sub_link, {dataType: 'text'})
+  getSubmissionPage(sid, function (data) {
+    if (!data) {
+      callbacks[sid](null, chrome.extension.getURL("error.png"));
+      callbacks[sid] = null;
+      return;
+    }
+
+    var match = data.match(/var\s+full_url\s*=\s*"([^"]+)"/);
+      
+    if (match) {
+      img_src = match[1];
+    }
+    
+    if (img_src && sid) {
+      localStorage[sid] = img_src;
+      callbacks[sid](sid, img_src);
+    } else {
+      console.error("Couldn't find submission image (sid: " + sid +") => " + img_src);
+      callbacks[sid](null, chrome.extension.getURL("error.png"));
+      callbacks[sid] = null;
+    }
+  })
+}
+
+function getSubmissionTitle(sid) {
+  var title = $("#" + sid + " span").attr('title');
+  if (title) {
+    return '"' + title + '"';
+  }
+  return "a murry masterpiece"
+}
+
+function doFave(sid) {
+  var submission_title = getSubmissionTitle(sid);
+  var pnotify = $.pnotify({
+      title: 'Faving Image...',
+      text: 'Faving ' + submission_title,
+      type: 'info'
+  });
+
+  getSubmissionPage(sid, function(data) {
+    if (!data) {
+      onFaveError(pnotify, submission_title);
+      return;
+    }
+
+    var has_faved_match = data.match(/>\s*-Remove from Favorites\s*</);
+    if (has_faved_match) {
+      // Already faved
+      onFaveSuccess(pnotify, submission_title);
+      return;
+    }
+
+    var fave_url_match = data.match(/a\s+href\s*=\s*"(\/fav\/[^"]+)"/);
+    if (!fave_url_match) {
+      onFaveError(pnotify, submission_title);
+      return;
+    }
+
+    $.ajax(fave_url_match[1])
     .success(function (data) {
-      var match = data.match(/var\s+full_url\s*=\s*"([^"]+)"/);
-      
-      if (match) {
-        img_src = match[1];
-      }
-      
-      if (img_src && sid) {
-        localStorage[sid] = img_src;
-        callbacks[sid](img_src);
-      } else {
-        console.error("Couldn't find submission image (sid: " + sid +") => " + img_src);
-        callbacks[sid](chrome.extension.getURL("error.png"));
-        callbacks[sid] = null;
-      }
+      onFaveSuccess(pnotify, submission_title);
     })
     .error(function (data, text, xhr) {
-      console.error('Submission request failed: ' + text + '\n' + data);
-      callbacks[sid](chrome.extension.getURL("error.png"));
-      callbacks[sid] = null;
+      console.error('Fave request failed: ' + text + '\n' + data);
     });
+  });
+}
+
+function onFaveError(pnotify, submission_title) {
+  pnotify.pnotify({
+      title: 'Fave Error',
+      text: 'There was an error faving ' + submission_title +' :(',
+      type: 'error'
+    });
+  pnotify.pnotify_queue_remove();
+}
+
+function getFaveSuccessMessage(title) {
+  var choice = Math.random();
+  var lower_title = title.toLowerCase();
+
+  if (lower_title.indexOf("red") >= 0 && lower_title.indexOf("panda") >= 0) {
+    return "Yay red pandas! :D"
+  }
+
+  if (choice < .01) {
+    return "Faved... but would you want your mother to know you're into " + title + "?"
+  }
+
+  if (choice < .1) {
+    return "Ah, we see " + title + " pleases your plums!"
+  }
+
+  if (choice < .25) {
+    return "We've noted that " + title + " tickles your fancy!";
+  }
+
+  if (choice < .5) {
+    return title + " is the bees knees!";
+  }
+
+  if (choice < .75) {
+    return "Gotcha, " + title + " floats your boat!";
+  }
+
+  return 'Successfully faved ' + title;
+}
+
+function onFaveSuccess(pnotify, submission_title) {
+  pnotify.pnotify({
+      title: 'Image Faved!',
+      text: getFaveSuccessMessage(submission_title),
+      type: 'success'
+    });
+  pnotify.pnotify_queue_remove();
 }
 
 function id(o) {
@@ -160,17 +276,18 @@ function popup(img, e) {
 
   popup_img = $('<img id="popup_img"></img>')
 
-  maybeShowDownloadFeatureNotif();
+  maybeShowFaveFeatureNotif();
 
-  getFullImageSrc(img, function (img_src) {
+  getFullImageSrc(img, function (sid, img_src) {
     popup_div.append(
       popup_img.attr({src: img_src})
       .load(function() {
         hoveredImgSrc = img_src;
+        hoveredSid = sid;
         popup_img.data('width', popup_img.width()).data('height', popup_img.height());
         popup_div.children("#loading_img").remove();
         move_image($(this), px, py);
-        $(this).css("border", "solid black 3px").show("fade", {}, 300);
+        $(this).show("fade", {}, 300);
       })
       .error(function() {
         $(popup_div.children("#loading_img")[0]).remove();
@@ -252,14 +369,14 @@ function viewport() {
   };
 }
 
-function maybeShowDownloadFeatureNotif() {
-  if (!localStorage["downloadFeatureNotifShown"]) {
+function maybeShowFaveFeatureNotif() {
+  if (!localStorage["faveFeatureNotifShown"]) {
     $.pnotify({
-      title: 'FA Previewer',
-      text: 'New Feature: Press the \'S\' key while hovering over an image to save it.  Happy FA\'ing, <3 Sero!',
+      title: 'New FA Previewer Feature',
+      text: 'Press the \'F\' key while hovering over an image to fave it.  Murrtastic!<br/><br/><3 Sero',
       type: 'info'
     });
-    localStorage["downloadFeatureNotifShown"] = true;
+    localStorage["faveFeatureNotifShown"] = true;
   }
 }
 
