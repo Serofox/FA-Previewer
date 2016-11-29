@@ -58,13 +58,7 @@ $.each(imgs, function(_, img) {
 });
 
 $(document).ready(function() {
-  // Only preload the submissions page
-  if (window.location.href.indexOf('msg/submissions') != -1) {
-    setTimeout(function() {
-      preload();
-    }, (1000));
-  }
-
+  
   $('body').keyup(function (e) {
     if (e.which == 83) { // 'S'
       if (hoveredImgSrc != null) {
@@ -236,21 +230,6 @@ function onFaveSuccess(pnotify, submission_title) {
 
 function id(o) {
   return o;
-}
-
-function preload() {
-  console.log("Preloading");
-  
-  var imgs = $('img');
-  $.each(imgs, function(_, img) {
-    if (!isThumbnail(img)) {
-      return;
-    }
-
-    getFullImageSrc(img, function(full_src) {
-      id(new Image()).src = full_src;
-    });
-  });
 }
 
 function popup(img, e) {

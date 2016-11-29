@@ -1,6 +1,6 @@
 {
   "name": "FA Previewer",
-  "version": "2.2",
+  "version": "2.2.1",
   "description": "Full-size pop-up image previewer for submission view on Fur Affinity",
   "manifest_version": 2,
   "content_scripts": [
