@@ -1,7 +1,8 @@
 var dbg = false;
 
 $(document.body).append($('<div id="fa_popup"></div>'));
-var popup_div = $($('#fa_popup')[0]);
+var popup_div = $($('#fa_popup')[0])
+popup_div.css({'z-index': 2147483647, 'position': 'absolute'}); // LOL
 popup_div.hide();
 var callbacks = {};
 var px = -1;
@@ -73,14 +74,10 @@ $(document).ready(function() {
 });
 
 function isThumbnail(img) {
-  return $(img).siblings('i.icon').length > 0;
+  return $(img).siblings('i[title]').length > 0;
 }
 
-function getSubmissionPage(sid, callback) {
-  sid_num = sid;
-  if (sid_num.indexOf("sid_") == 0) {
-    sid_num = sid_num.substring("sid_".length);
-  }
+function getSubmissionPage(sid_num, callback) {
   sub_link = "/view/" + sid_num + "/";
 
   $.ajax(sub_link, {dataType: 'text'})
@@ -93,14 +90,28 @@ function getSubmissionPage(sid, callback) {
     });
 }
 
+function getSidNumFromIdAttribute(sid_str) {
+  if (!sid_str) {
+	return null;
+  }
+  var match = sid_str.match(/\w+(\d+)/);
+  return match[0];
+}
+
 function getFullImageSrc(thumbnail, callback) {
-  var sid = $(thumbnail).parents('b').first().attr('id');
-  if (sid && localStorage[sid]) {
+  var sid_str = $(thumbnail).parents('*[id*="sid"]').first().attr('id');
+  var sid = getSidNumFromIdAttribute(sid_str);
+  if (!sid) {
+	console.error('Failed to find sid for thumbnail: ' + thumbnail);
+	return;
+  }
+  
+  if (localStorage[sid]) {
     callback(sid, localStorage[sid]);
     return;
   }
 
-  if (sid && callbacks[sid]) {
+  if (callbacks[sid]) {
     var orig_callback = callbacks[sid];
     callbacks[sid] = function (sid, img_src) {
       orig_callback(sid, img_src);
@@ -118,10 +129,13 @@ function getFullImageSrc(thumbnail, callback) {
     }
 
     var match = data.match(/var\s+full_url\s*=\s*"([^"]+)"/);
-      
+    	
     if (match) {
-      img_src = match[1];
-    }
+      var img_src = match[1];
+    } else {
+	  console.error('Failed to extract full url for submission.');
+	  return;
+	}
     
     if (img_src && sid) {
       localStorage[sid] = img_src;
